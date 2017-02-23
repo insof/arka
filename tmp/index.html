@@ -1,0 +1,50 @@
+<html>
+
+<head>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.3.5/pixi.min.js"></script>
+
+</head>
+
+<body>
+
+<script>
+
+var app = new PIXI.Application(800, 600, {backgroundColor : 0x1099bb});
+document.body.appendChild(app.view);
+
+function changeDirection(e) {
+	var cx = e.data.global.x;
+	var cy = e.data.global.y;
+	
+	sp.moveAngle = Math.atan2(cy-sp.y, cx-sp.x);
+	sp.moveSpeed = Math.sqrt(Math.pow(cx-sp.x, 2) + Math.pow(cy-sp.y, 2)) / 70;
+};
+
+var listener = new PIXI.Sprite();
+listener.width = 800;
+listener.height = 600;
+app.stage.addChild(listener);
+listener.on("mousemove", changeDirection);
+listener.interactive = true;
+
+var sp = new PIXI.Sprite(PIXI.Texture.fromImage('btn_level_select.png'));
+sp.position.set(400, 500);
+sp.anchor.set(0.5);
+app.stage.addChild(sp);
+
+sp.moveAngle = 0;
+sp.moveSpeed = 0;
+
+PIXI.ticker.shared.add(function() {
+	
+	sp.x += Math.cos(sp.moveAngle) * sp.moveSpeed;
+	sp.y += Math.sin(sp.moveAngle) * sp.moveSpeed;
+	
+});
+
+</script>
+
+</body>
+
+</html>
