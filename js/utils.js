@@ -50,9 +50,9 @@ Utils.prototype.createSelector = function () {
 
     for (var i = 0; i < this.lvlList.length; i++) {
         var lvl = new PIXI.Sprite.fromImage('./assets/lvl/' + this.lvlList[i] + '.png');
-        lvl.height = 240;
-        lvl.width = 320;
-        lvl.position.set((100 + i * 340), 80);
+        lvl.height = 180;
+        lvl.width = 230;
+        lvl.position.set((20 + i * 250), 80);
         lvl.interactive = true;
         lvl.val = this.lvlList[i];
         this.app.stage.addChild(lvl);
@@ -62,7 +62,7 @@ Utils.prototype.createSelector = function () {
 
 Utils.prototype.sendRequestLvl = function () {
     document.body.appendChild(this.app.view);
-    this.request("http://dentist-kiev.com/test/arka/levelout.php", function (data) {
+    this.request("http://test.erika.com.ua/arka/levelout.php", function (data) {
         this.lvlList = JSON.parse(data);
         // console.log(this);
         this.createSelector();
@@ -73,7 +73,7 @@ Utils.prototype.sendRequestLvl = function () {
 Utils.prototype.getLvl = function (e) {
     this.app.destroy(true);
     var lv = e.target.val;
-    this.request("http://dentist-kiev.com/test/arka/getlvl.php?level=" + lv, function (data) {
+    this.request("http://test.erika.com.ua/arka/getlvl.php?level=" + lv, function (data) {
         game.lvl = data.split("\n");
         // console.log(game.lvl);
         game.loadLvl();

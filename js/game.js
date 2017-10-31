@@ -1,17 +1,8 @@
 function Arkaniod() {
 
-    // this.lvl = ['q         ',
-    //     'qq        ',
-    //     'qqq       ',
-    //     'qqqq      ',
-    //     'qqqqq     ',
-    //     'qqsqqq    ',
-    //     'qqqqqqq   ',
-    //     'qaqqqdqq  ',
-    //     'zzzzzzzzf '];
     this.lvl = [];
     this.app = new PIXI.Application(800, 600, {backgroundColor: 0xFFFFFF});
-    this.menu = new PIXI.Application(100, 600, {backgroundColor: 0x00ff99});
+    this.menu = new PIXI.Application(100, 600, {backgroundColor: 0xFFFFFF});
     this.cont = new PIXI.Container;
     this.level = [];
     this.platform = new PIXI.Sprite.fromImage('./assets/img/platform.png');
@@ -31,11 +22,15 @@ function Arkaniod() {
     this.ballSpeed = 10;
     this.defaultBallSpeed = 10;
     this.moveAngle;
+    this.balls = [this.ball];
     this.isCollision = false;
     this.winCounter;
     this.bonus = [];
     this.superball = 0;
     this.lifeAddText;
+    this.additionalBall;
+    this.menucont = new PIXI.Container;
+    this.selectorCont = new PIXI.Container;
 
     this.lives = 1;
     this.style = new PIXI.TextStyle({
@@ -77,11 +72,12 @@ Arkaniod.prototype.movePlatform = function () {
 };
 
 Arkaniod.prototype.startMoveBall = function () {
-    this.ball.x = this.platform.x;
+    this.balls[0].x = this.platform.x;
 };
 
 Arkaniod.prototype.addResetLvlSelect = function () {
     document.body.appendChild(this.menu.view);
+    this.menu.stage.addChild(this.menucont);
     var reset = new PIXI.Sprite.fromImage('./assets/img/reset.png');
     reset.anchor.set(0.5);
     reset.height = 100;
@@ -89,7 +85,7 @@ Arkaniod.prototype.addResetLvlSelect = function () {
     reset.scale *= 1.3;
     reset.interactive = true;
     reset.position.set(this.menu.renderer.width / 2, reset.height / 2);
-    this.menu.stage.addChild(reset);
+    this.menucont.addChild(reset);
     reset.on('click', this.doReset.bind(this));
 
     var menu = new PIXI.Sprite.fromImage('./assets/img/menu.png');
@@ -98,7 +94,7 @@ Arkaniod.prototype.addResetLvlSelect = function () {
     menu.width = 90;
     menu.interactive = true;
     menu.position.set(this.menu.renderer.width / 2, 100 + menu.height / 2);
-    this.menu.stage.addChild(menu);
+    this.menucont.addChild(menu);
     menu.on('click', this.goMenu.bind(this));
 };
 
@@ -111,7 +107,9 @@ Arkaniod.prototype.doReset = function () {
 
 Arkaniod.prototype.goMenu = function () {
     this.endOfLevel();
-    this.app.destroy(true);
+    this.menucont.destroy(true);
+    this.cont.destroy(true);
+    this.app.stage.addChild(this.selectorCont);
     util.sendRequestLvl();
 };
 
@@ -149,8 +147,8 @@ Arkaniod.prototype.loadLvl = function () {
 Arkaniod.prototype.startLvl = function () {
     this.ballAway = false;
     this.cont.addChild(this.platform);
-    this.ball.position.set(this.app.renderer.width / 2, (this.app.renderer.height - this.platform.height - this.ball.height / 3));
-    this.cont.addChild(this.ball);
+    this.balls[0].position.set(this.app.renderer.width / 2, (this.app.renderer.height - this.platform.height - this.balls[0].height / 3));
+    this.cont.addChild(this.balls[0]);
     this.app.ticker.add(this.movePlatform.bind(this));
     this.listener.on("mousemove", this.callClick.bind(this));
     this.listener.on('click', this.callStartTicker.bind(this));
@@ -171,23 +169,23 @@ Arkaniod.prototype.callStartTicker = function () {
 
 Arkaniod.prototype.launchBall = function () {
     this.app.ticker.remove(this.startMoveBall);
-    this.moveAngle = Math.random() * (((-Math.PI * 2) / 3) - (-Math.PI / 3)) + (-Math.PI / 3);
+    this.balls[0].moveAngle = Math.random() * (((-Math.PI * 2) / 3) - (-Math.PI / 3)) + (-Math.PI / 3);
 
     this.app.ticker.add(this.moveBall);
     this.app.ticker.add(this.updateLvl);
 };
 
-Arkaniod.prototype.ballAngleCalc = function (axis, plus) {
-    var dx = Math.cos(this.moveAngle) * this.ballSpeed;
-    var dy = Math.sin(this.moveAngle) * this.ballSpeed;
-    this.ball.rotation += 0.03;
+Arkaniod.prototype.ballAngleCalc = function (axis, plus, ball) {
+    var dx = Math.cos(ball.moveAngle) * this.ballSpeed;
+    var dy = Math.sin(ball.moveAngle) * this.ballSpeed;
+    ball.rotation += 0.03;
 
     if (axis == "x") dx *= -1;
     else dy *= -1;
 
     if (plus === undefined) plus = 0;
 
-    this.moveAngle = Math.atan2(dy, dx + plus);
+    ball.moveAngle = Math.atan2(dy, dx + plus);
 };
 
 Arkaniod.prototype.moveBall = function () {
@@ -196,70 +194,79 @@ Arkaniod.prototype.moveBall = function () {
 
 
     for (var step = 0; step < this.ballSpeed; step++) {
-        if (this.ball.x < this.ball.width / 2) {
-            this.ball.x = this.ball.width / 2;
-            this.ballAngleCalc("x");
-            this.isCollision = true;
-        } else if (this.ball.x > this.app.renderer.width - (this.ball.width / 2)) {
-            this.ball.x = this.app.renderer.width - (this.ball.width / 2);
-            this.ballAngleCalc("x");
-            this.isCollision = true;
-        } else if (this.ball.y < this.ball.height / 2) {
-            this.ball.y = this.ball.height / 2;
-            this.ballAngleCalc("y");
-            this.isCollision = true;
-        } else if (this.ball.y > this.app.renderer.height - this.platform.height - this.ball.height / 3) {
-            if ((this.ball.x > this.platform.x - this.platform.width / 2) && (this.ball.x < this.platform.x + this.platform.width / 2)) {
-                this.ball.y = this.app.renderer.height - this.platform.height - this.ball.height / 3;
-                if (this.ball.x < this.platform.x) {
-                    var plus = (this.platform.x - this.ball.x) * -0.03;
-                    this.ballAngleCalc("y", plus);
-                } else if (this.ball.x >= this.platform.x) {
-                    var plus = (this.platform.x - this.ball.x) * -0.03;
-                    this.ballAngleCalc("y", plus);
-                }
+
+        for (var i = 0; i < this.balls.length; i++) {
+
+            if (this.balls[i].x < this.balls[i].width / 2) {
+                this.balls[i].x = this.balls[i].width / 2;
+                this.ballAngleCalc("x", 0, this.balls[i]);
                 this.isCollision = true;
-            } else {
-                this.ball.x += Math.cos(this.moveAngle);
-                this.ball.y += Math.sin(this.moveAngle);
-                if (this.ball.y > this.app.renderer.height + this.ball.height) {
-                    // debugger;
-                    this.lives--;
-                    if (!this.lives) {
-                        console.log("You Lose!");
-                        this.endOfLevel();
-                        var loseWindow = new PIXI.Sprite.fromImage('./assets/img/pony.png');
-                        loseWindow.width = 800;
-                        loseWindow.height = 600;
-                        this.app.stage.addChild(loseWindow);
-                        var loseText = new PIXI.Text('Your total score is: ' + scoreCounter, this.style);
-                        loseText.x = 300;
-                        loseText.y = 300;
-                        this.app.stage.addChild(loseText);
-                        scoreCounter = 0;
-                        return;
-                    } else {
-                        this.removeTickers();
-                        if (this.bonus.length) {
-                            for (var i = 0; i < this.bonus.length; i++) {
-                                this.cont.removeChild(this.bonus[i]);
-                                this.bonus.splice(i, 1);
+            } else if (this.balls[i].x > this.app.renderer.width - (this.balls[i].width / 2)) {
+                this.balls[i].x = this.app.renderer.width - (this.balls[i].width / 2);
+                this.ballAngleCalc("x", 0, this.balls[i]);
+                this.isCollision = true;
+            } else if (this.balls[i].y < this.balls[i].height / 2) {
+                this.balls[i].y = this.balls[i].height / 2;
+                this.ballAngleCalc("y", 0, this.balls[i]);
+                this.isCollision = true;
+            } else if (this.balls[i].y > this.app.renderer.height - this.platform.height - this.balls[i].height / 3) {
+                if ((this.balls[i].x > this.platform.x - this.platform.width / 2) && (this.balls[i].x < this.platform.x + this.platform.width / 2)) {
+                    this.balls[i].y = this.app.renderer.height - this.platform.height - this.balls[i].height / 3;
+                    if (this.balls[i].x < this.platform.x) {
+                        var plus = (this.platform.x - this.balls[i].x) * -0.03;
+                        this.ballAngleCalc("y", plus, this.balls[i]);
+                    } else if (this.balls[i].x >= this.platform.x) {
+                        var plus = (this.platform.x - this.balls[i].x) * -0.03;
+                        this.ballAngleCalc("y", plus, this.balls[i]);
+                    }
+                    this.isCollision = true;
+                } else {
+                    this.balls[i].x += Math.cos(this.balls[i].moveAngle);
+                    this.balls[i].y += Math.sin(this.balls[i].moveAngle);
+                    if (this.balls[i].y > this.app.renderer.height + this.balls[i].height) {
+                        // debugger;
+                        if (this.balls.length < 2) {
+                            this.lives--;
+                            if (!this.lives) {
+                                console.log("You Lose!");
+                                this.endOfLevel();
+                                var loseWindow = new PIXI.Sprite.fromImage('./assets/img/pony.png');
+                                loseWindow.width = 800;
+                                loseWindow.height = 600;
+                                this.app.stage.addChild(loseWindow);
+                                var loseText = new PIXI.Text('Your total score is: ' + scoreCounter, this.style);
+                                loseText.x = 300;
+                                loseText.y = 300;
+                                this.app.stage.addChild(loseText);
+                                scoreCounter = 0;
+                                return;
+                            } else {
+                                this.removeTickers();
+                                if (this.bonus.length) {
+                                    for (var i = 0; i < this.bonus.length; i++) {
+                                        this.cont.removeChild(this.bonus[i]);
+                                        this.bonus.splice(i, 1);
+                                    }
+                                }
+                                this.startLvl();
+                                return;
                             }
+                        } else {
+                            this.cont.removeChild(this.balls[i]);
+                            this.balls.splice(i, 1);
                         }
-                        this.startLvl();
-                        return;
                     }
                 }
             }
-        }
-        else {
-            this.ball.x += Math.cos(this.moveAngle);
-            this.ball.y += Math.sin(this.moveAngle);
-            this.ball.rotation += 0.03;
-            this.checkCollision();
-            this.checkBonus();
-        }
+            else {
+                this.balls[i].x += Math.cos(this.balls[i].moveAngle);
+                this.balls[i].y += Math.sin(this.balls[i].moveAngle);
+                this.balls[i].rotation += 0.03;
+                this.checkCollision(this.balls[i]);
+                this.checkBonus();
+            }
 
+        }
     }
 }
 ;
@@ -300,9 +307,11 @@ Arkaniod.prototype.applyBonus = function (bon) {
     if (bon.bonus === "superball") {
         this.superball = 1;
         this.ballSpeed *= 0.5;
-        this.ball.texture = PIXI.Texture.fromImage('./assets/img/superball.png');
-        this.ball.width = 100;
-        this.ball.height = 100;
+        for (var i = 0; i < this.balls.length; i++) {
+            this.balls[i].texture = PIXI.Texture.fromImage('./assets/img/superball.png');
+            this.balls[i].width = 100;
+            this.balls[i].height = 100;
+        }
         console.log('SuperBALL - ON');
         setTimeout(this.returnSuperBall, 10000);
     }
@@ -316,6 +325,23 @@ Arkaniod.prototype.applyBonus = function (bon) {
         console.log(this.lives);
         setTimeout(this.removeText, 2000);
     }
+    if (bon.bonus === "ball") {
+        this.additionalBall = new PIXI.Sprite.fromImage('./assets/img/ball.png');
+        this.additionalBall.anchor.set(0.5);
+        this.additionalBall.position.set(this.balls[0].x, this.balls[0].y);
+        this.additionalBall.height = 30;
+        this.additionalBall.width = 30;
+        this.additionalBall.moveAngle = this.balls[0].moveAngle + Math.PI / 3;
+        this.cont.addChild(this.additionalBall);
+        this.balls.push(this.additionalBall);
+        console.log('Additional ball - ON');
+        setTimeout(this.removeAdditionalBall.bind(this), 10000);
+    }
+};
+
+Arkaniod.prototype.removeAdditionalBall = function () {
+    this.cont.removeChild(this.additionalBall);
+    this.balls.splice(1, 10);
 };
 
 Arkaniod.prototype.removeText = function () {
@@ -325,9 +351,11 @@ Arkaniod.prototype.removeText = function () {
 Arkaniod.prototype.returnSuperBall = function () {
     this.superball = 0;
     this.ballSpeed /= 0.5;
-    this.ball.texture = PIXI.Texture.fromImage('./assets/img/ball.png');
-    this.ball.width = 30;
-    this.ball.height = 30;
+    for (var i = 0; i < this.balls.length; i++) {
+        this.balls[i].texture = PIXI.Texture.fromImage('./assets/img/ball.png');
+        this.balls[i].width = 30;
+        this.balls[i].height = 30;
+    }
     console.log('SuperBALL - OFF');
 };
 
@@ -360,7 +388,7 @@ Arkaniod.prototype.removeTickers = function () {
     this.app.ticker.remove(this.updateLvl);
 };
 
-Arkaniod.prototype.checkCollision = function () {
+Arkaniod.prototype.checkCollision = function (ball) {
 
     if (!this.isCollision) {
 
@@ -368,7 +396,7 @@ Arkaniod.prototype.checkCollision = function () {
         for (var q = 0; q < this.level.length; q++) {
             for (var i = 0; i < this.level[q].length; i++) {
                 if (!(this.level[q][i] === null)) {
-                    var collision = this.calcIntersection(this.ball.x, this.ball.y, this.ball.width / 2, this.level[q][i].x, this.level[q][i].y, this.level[q][i].width, this.level[q][i].height);
+                    var collision = this.calcIntersection(ball.x, ball.y, ball.width / 2, this.level[q][i].x, this.level[q][i].y, this.level[q][i].width, this.level[q][i].height);
 
                     if (collision) {
                         collisionList.push({brick: this.level[q][i], collision: collision, x: i, y: q});
@@ -431,29 +459,39 @@ Arkaniod.prototype.checkCollision = function () {
                             this.cont.addChild(bon);
                             this.bonus.push(bon);
                         }
+                        if (collisionList[i].brick.bonus === "ball") {
+                            var bon = new PIXI.Sprite.fromImage('./assets/img/bonus.png');
+                            bon.bonus = "ball";
+                            bon.height = 50;
+                            bon.width = 50;
+                            bon.anchor.set(0.5);
+                            bon.position.set(collisionList[i].brick.x + (collisionList[i].brick.width / 2), collisionList[i].brick.y + (collisionList[i].brick.height / 2));
+                            this.cont.addChild(bon);
+                            this.bonus.push(bon);
+                        }
+                        ;
                     }
-                    ;
                     this.level[br.y][br.x] = null;
-                }
 
-
-                for (var q = 0; q < br.collision.length; q++) {
-                    if (br.collision[q] == "top" || br.collision[q] == "bottom") collisionAxis.y++;
-                    else collisionAxis.x++;
+                    for (var q = 0; q < br.collision.length; q++) {
+                        if (br.collision[q] == "top" || br.collision[q] == "bottom") collisionAxis.y++;
+                        else collisionAxis.x++;
+                    }
                 }
-            }
-            if (!this.superball) {
-                if (collisionAxis.x > collisionAxis.y) {
-                    this.ballAngleCalc("x");
-                } else {
-                    this.ballAngleCalc("y");
+                if (!this.superball) {
+                    if (collisionAxis.x > collisionAxis.y) {
+                        this.ballAngleCalc("x", 0, ball);
+                    } else {
+                        this.ballAngleCalc("y", 0, ball);
+                    }
                 }
+                this.isCollision = true;
             }
-            this.isCollision = true;
         }
+        if (this.isCollision) return;
     }
-    if (this.isCollision) return;
-};
+}
+;
 
 Arkaniod.prototype.calcIntersection = function (cx, cy, cr, rx, ry, rw, rh) {
 
@@ -496,7 +534,7 @@ Arkaniod.prototype.isCircleIntersectLine = function (cx, cy, cr, p1x, p1y, p2x, 
 
 Arkaniod.prototype.createBrick = function (y, x, type) {
 
-    var validTypes = ["q", " ", "z", "a", "s", "d", "l"];
+    var validTypes = ["q", " ", "z", "a", "s", "d", "l", "f"];
     if (validTypes.indexOf(type) < 0)
         return;
     if (type === "q") {
@@ -540,7 +578,7 @@ Arkaniod.prototype.createBrick = function (y, x, type) {
         this.cont.addChild(brick);
         return brick;
     } else if (type === "d") {
-        var brick = new PIXI.Sprite.fromImage('./assets/img/brick_bonus.png');
+        var brick = new PIXI.Sprite.fromImage('./assets/img/brick_bonus2.png');
         brick.position.set((x * 80), (y * 20));
         brick.width = 80;
         brick.height = 20;
@@ -556,6 +594,16 @@ Arkaniod.prototype.createBrick = function (y, x, type) {
         brick.height = 20;
         brick.val = this.getRandomInt(20, 30);
         brick.bonus = "live";
+        brick.hit = 1;
+        this.cont.addChild(brick);
+        return brick;
+    } else if (type === "f") {
+        var brick = new PIXI.Sprite.fromImage('./assets/img/brick_bonus2.png');
+        brick.position.set((x * 80), (y * 20));
+        brick.width = 80;
+        brick.height = 20;
+        brick.val = this.getRandomInt(20, 30);
+        brick.bonus = "ball";
         brick.hit = 1;
         this.cont.addChild(brick);
         return brick;
